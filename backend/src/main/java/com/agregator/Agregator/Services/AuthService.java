@@ -2,7 +2,10 @@ package com.agregator.Agregator.Services;
 
 import com.agregator.Agregator.Controllers.TestController;
 import com.agregator.Agregator.Entity.Customer;
+import com.agregator.Agregator.Entity.User;
+import com.agregator.Agregator.Enums.UserRole;
 import com.agregator.Agregator.Repositories.CustomerRepository;
+import com.agregator.Agregator.Repositories.UserRepository;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -21,31 +24,37 @@ import java.util.regex.Pattern;
 @Slf4j
 public class AuthService {
 
-    private final CustomerRepository customerRepository;
     private static final long CODE_LIFETIME_MILLIS = 5 * 60 * 1000; // 5 минут
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
 
     private final Map<String, VerificationData> verificationCodes = new ConcurrentHashMap<>();
 
-    public AuthService(CustomerRepository customerRepository) {
-        this.customerRepository = customerRepository;
-    }
     @Autowired
     private EmailService emailService;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private CustomerRepository customerRepository;
+
 
     public String sendVerificationCode(String email) {
         if(!isValidEmail(email)){
             return "Неверный формат email";
         }
         try {
-            Optional<Customer> customer = customerRepository.findByEmail(email);
-            if (customer.isEmpty()) {
-                return "Нет такого пользователя";
+            Optional<User> user = userRepository.findByEmail(email);
+            if (user.isEmpty()) {
+                User newUser = new User();
+                newUser.setEmail(email);
+                userRepository.save(newUser);
+
+                Customer newcustomer = new Customer();
+                newcustomer.setEmail(email);
+                customerRepository.save(newcustomer);
             }
         } catch (Exception e) {
             return "Ошибка при проверке пользователя";
         }
-
         String code = generateCode();
         verificationCodes.put(email, new VerificationData(code, Instant.now()));
 
@@ -56,7 +65,7 @@ public class AuthService {
         return "Код отправлен";
     }
 
-    public String verifyCode(String email, String code) {
+    public String verifyCode(String email, String code, UserRole role) {
         if(!isValidEmail(email)){
             return "Неверный формат email";
         }
@@ -65,7 +74,7 @@ public class AuthService {
         if (data != null && data.code().equals(code) && isCodeValid(data)) {
             verificationCodes.remove(data);
 
-            String token = JwtService.generateToken(email);
+            String token = JwtService.generateToken(email, role);
 
             logger.info("Код успешно Введен"+ email);
             logger.info("Токен: "+ token);

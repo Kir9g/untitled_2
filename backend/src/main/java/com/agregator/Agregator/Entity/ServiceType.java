@@ -5,21 +5,20 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.io.Serializable;
+import java.util.List;
 
 @Entity
 @Getter
 @Setter
-public class AddressType {
+public class ServiceType {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int addressTypeId;
+    private int typeId;
+
+    @Column(nullable = false, length = 2)
+    private String typeCode;
 
     @Column(nullable = false, length = 30)
-    private String addressTypeName;
-
-    @Column(length = 250)
-    private String addInfo;
-
-    // геттеры и сеттеры
+    private String typeName;
 }
